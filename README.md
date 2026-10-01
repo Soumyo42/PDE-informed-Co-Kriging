@@ -138,7 +138,7 @@ python main.py --paper_results True
 
 $$
 \begin{equation}
-- \nabla \cdot (a(x) \nabla u(x)) = f(x) \quad \text{in $\Omega$}  
+\nabla \cdot (a(x) \nabla u(x)) = f(x) \quad \text{in $\Omega$}  
 \end{equation} 
 $$
 
