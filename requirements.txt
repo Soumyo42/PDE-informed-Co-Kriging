@@ -1,0 +1,10 @@
+gpytorch==1.14
+matplotlib==3.11.2
+numpy==2.5.3
+torch==2.6.0
+tqdm==4.68.2
+
+IPython==9.0.2
+jupyter_client==8.6.3
+jupyter_core==5.7.2
+scipy==1.15.2
