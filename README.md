@@ -35,14 +35,14 @@ A two-dimensional Darcy-flow example (`Darcy_jupyter_example/`)  is also provide
 │   └── squaredprocess1D.py
 ├── SimpleKrigGpytorch.py
 └── requirements.txt
-
+```
 ## Installation
 1. Clone the Repository
 
-'''bash
-git clone https://github.com/<username>/<repository>.git
+```bash
 cd <repository>
-'''
+git clone https://github.com/Soumyo42/PDE-informed-Co-Kriging.git
+```
 
 2. Create a Virtual Environment
 Linux / macOS:
@@ -55,6 +55,7 @@ Windows:
 python -m venv venv
 venv\Scripts\activate
 ```
+
 3. Activate the virtual environment
 Linux / macOS:
 ```bash
