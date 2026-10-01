@@ -128,7 +128,6 @@ options:
 ```
 
 ### To reproduce the paper results
- 
 ```bash
 python main.py --problem {convection,logistic,rd,squared} --paper_results True
 ```
