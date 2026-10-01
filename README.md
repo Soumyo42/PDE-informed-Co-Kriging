@@ -130,7 +130,7 @@ options:
 ### To reproduce the paper results
  
 ```bash
-python main.py --paper_results True
+python main.py --problem {convection,logistic,rd,squared} --paper_results True
 ```
 
 ## Darcy Flow example
