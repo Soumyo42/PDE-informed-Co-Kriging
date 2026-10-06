@@ -34,7 +34,6 @@ A two-dimensional Darcy-flow example (`Darcy_jupyter_example/`)  is also provide
 │   ├── rxndiffusion1D.py
 │   └── squaredprocess1D.py
 ├── SimpleKrigGpytorch.py
-├── repozipfile.zip
 └── requirements.txt
 ```
 ## Installation
@@ -45,7 +44,7 @@ cd <repository>
 git clone https://github.com/Soumyo42/PDE-informed-Co-Kriging.git
 ```
 ⚠️ ^^^^ `git clone` doesn't work for anonymous github. ⚠️
-Therefore we provide a zip file `repozipfile.zip` for the full code.
+Therefore, use the option to download repository as a zip file (on the upper right).
 
 2. Create a Virtual Environment
 Linux / macOS:
