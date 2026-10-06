@@ -404,17 +404,12 @@ class PhysicsRegression(nn.Module):
                         prior_variance - solved.square().sum(dim=0) 
                     ).clamp_min(min_val)           
 
-            # Assertion check to see if solved.square().sum(dim=0) is the diag(H.T @ Kinv @ H)
-            try: 
-                assert torch.allclose(solved.square().sum(dim=0), 
-                                  torch.diagonal(cross_covariance @ torch.cholesky_inverse(cholesky) @ cross_covariance.T),)
-            except AssertionError:
-                print(f'Max error in HTH computation with cholesky vs. inverse = {
-                                            torch.max(
-                                                torch.abs(solved.square().sum(dim=0) - 
-                                                torch.diagonal(cross_covariance @ torch.cholesky_inverse(cholesky) @ cross_covariance.T))
-                                        )}'
-                    ) 
+            # # Assertion check to see if solved.square().sum(dim=0) is the diag(H.T @ Kinv @ H)
+            # try: 
+            #     assert torch.allclose(solved.square().sum(dim=0), 
+            #                       torch.diagonal(cross_covariance @ torch.cholesky_inverse(cholesky) @ cross_covariance.T),)
+            # except AssertionError:
+            #     print(f'Max error in HTH computation with cholesky vs. inverse = {torch.max(torch.abs(solved.square().sum(dim=0) - torch.diagonal(cross_covariance @ torch.cholesky_inverse(cholesky) @ cross_covariance.T)))}') 
 
             self.kernel.diag_mode = original_val
 
