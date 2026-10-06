@@ -1,4 +1,4 @@
-# Learning Physical Fields with PDE-Informed Gaussian Processes: A Frugal Alternative to PINNs
+# PIGP
 
 Description: Co-Kriging for solving and learning physical fields from sparse observations and PDE constraints.
 
