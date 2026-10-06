@@ -60,7 +60,9 @@ parser.add_argument('--jitter',  type=float, default=1e-9, help='manual jitter f
 parser.add_argument('--best_jitter', type=str, default='True', help='Finite search for the best possible jitter. Default True. [OVERRIDES --JITTER]')
 parser.add_argument('--random_colloc', type=str, default='True', help='Choosing uniform random collocation points. Default True.')
 parser.add_argument('--init_lengthscale', nargs='+', default=None, help='The initialization of the RBF/Matern lengthscale parameters. Default [0.5] in 1D or [0.5, 0.5] in 2D')
+parser.add_argument('--sigma', type=float, default=1.0, help='Explicit noise variance. Default 1.0.')
 
+parser.add_argument('--mean', type=float, default = None, help='Explicit mean value (for non-stationary computations). Default is None')
 parser.add_argument('--stationary', type=str, default='False', help='Assume mu = 0. Default False.')
 parser.add_argument('--loss_landscape', type=str, default='False', help='To visualize the loss. Default False.')
 parser.add_argument('--subsampling', type=int, default=2, help='subsample the collocation points for fast covariance computations during LOOCV optimization.')
@@ -103,9 +105,9 @@ def main():
     kwargs = dict(Nx = args.nx, Nt = args.nt, nobs = args.nobs, N_colloc = args.nc, random_colloc = random_colloc,
                 kernel = args.kernel, init_lengthscale = init_lengthscale, 
                 beta = args.beta, rho = args.rho, nu = args.nu, 
-                adaptive_nugget = adaptive_nugget, stationary = stationary, best_jitter = best_jitter, save = save, jitter_co_Krig = args.jitter, mode = 'u2',
+                adaptive_nugget = adaptive_nugget, stationary = stationary, mean_explicit = args.mean, best_jitter = best_jitter, save = save, jitter_co_Krig = args.jitter, mode = 'u2',
                 steps = steps, learning_rate = args.lr, seed = seed, weight_decay = 0.0, subsampling = args.subsampling, 
-                loss_landscape = loss_landscape, 
+                loss_landscape = loss_landscape, sigma = args.sigma,
                 sq_flag = False,
                 N_initial = args.nx,
                 N_boundary = args.nt, 
@@ -117,12 +119,9 @@ def main():
         fn = convectionCK
         if reproduce:                                      # For reproducibilty
             kwargs['beta'] = 30.0
-            kwargs['stationary'] = True
-            kwargs['init_lengthscale'] = torch.tensor([0.088, 0.74])
+            kwargs['init_lengthscale'] = torch.tensor([0.1075, 0.9328])
             kwargs['steps'] = 0
             kwargs['best_jitter'] = False
-
-            # print(kwargs)
 
     elif args.problem == 'logistic':
         fn = logisticCK
@@ -147,9 +146,10 @@ def main():
         if reproduce:
             kwargs['rho'] = 5.0
             kwargs['nu'] = 5.0
-            kwargs['stationary'] = False
-            kwargs['init_lengthscale'] = torch.tensor([0.074, 0.581])
+            kwargs['init_lengthscale'] = torch.tensor([0.3, 0.3])
+            kwargs['mean_explicit'] = 1.0
             kwargs['best_jitter'] = False
+            kwargs['jitter_co_Krig'] = 1e-4 
             kwargs['steps'] = 0
 
     print(100 * '*' + '\n RESULTS WITH THE FOLLOWING SETTINGS: \n' + 100 * '*')

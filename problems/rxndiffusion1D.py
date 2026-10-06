@@ -329,8 +329,6 @@ class RxnDiffusionRegressor(PhysicsRegression):
     r"""
     Reaction diffusion equation co-Kriging class. 
     
-    Attributes\:
-    
     Define the following methods:
         1. `.forward()`: this is going to give the observation covariance matrix.
         2. `.cross_covariance(mode:str='u')`: define one or multiple modes. 
@@ -675,46 +673,48 @@ class RxnDiffCenteredValues(CenteredValues):
         self.stationary = bool(stationary)
 
     # kernel based centering
-    def centering_k(self, x: Tensor):
+    def centering_k(self, x: Tensor, sigma: float = 1.0):
         """ returns k(x,x) """
         # Storing original
         original_val = self.kernel.diag_mode 
         self.kernel.diag_mode = True
 
-        k = self.kernel(x).squeeze()            # For 1D problems
+        k = sigma**2 * self.kernel(x).squeeze()            
 
         self.kernel.diag_mode = original_val
         return k
 
     # centering with empirical mean 
-    def centering_y(self, y: Tensor):
+    def centering_y(self, y: Tensor, mean: float | None = None):
         """ return `torch.mean(y)` """
 
         y_mean = 0.0
         if not self.stationary:
-            y_mean = torch.mean(y)
-
+            if mean is None:
+                y_mean = torch.mean(y)
+            else:
+                y_mean = mean
         return y_mean
 
     # Centering u^2 function
-    def centering_y2(self, y: Tensor, x: Tensor,):                       
+    def centering_y2(self, y: Tensor, x: Tensor, sigma = 1.0, mean = None):                       
         """ Centering the given observations Y^2. """
         
         # Centering formula -- EY^2 - (EY)^2 = k(x,x); EY^2 = k(x,x) + (EY)^2
-        y_mean_sq = (self.centering_y(y))**2
+        y_mean_sq = (self.centering_y(y, mean))**2
 
-        k = self.centering_k(x)            # For 1D problems
+        k = self.centering_k(x, sigma)            
 
         return y_mean_sq, k
 
     # Centering collocation points
-    def centering_z(self, y: Tensor, z: Tensor):                       
+    def centering_z(self, y: Tensor, z: Tensor, sigma = 1.0, mean = None):                       
         """ Centering the collocation points: du/dt - nu * d2u/dx2 - rho * u + rho * u^2 """
 
-        y_mean = self.centering_y(y)
+        y_mean = self.centering_y(y, mean)
 
         term1 = (-self.rho * y_mean)
-        y_mean_sq, k = self.centering_y2(y, z)
+        y_mean_sq, k = self.centering_y2(y, z, sigma, mean)
 
         term2 = (self.rho * (y_mean_sq + k))
         return term1, term2
@@ -744,9 +744,11 @@ def main(rho = 5.0,                                                             
         loss_landscape: bool = False,                                           # to visualize loss-landscape 
         best_jitter: bool = False,                                              # find best jitter 
         mode: str = 'u2',                                                       # u2 observations
+        mean_explicit: float | None = None,                                     # Explicit mean value for the prior (far from observations)
         seed: int = 0,
         save: bool = False,                                                     # saving the model
         random_colloc: bool = False,                                            # To use random collocation points,
+        sigma: float = 1.0,                                                     # Explicit sigma value to compute LOOCV
         **kwargs,
     ):
 
@@ -772,7 +774,7 @@ def main(rho = 5.0,                                                             
     file_name = f'_init{_kernel.lengthscale.tolist()}_opt{steps}_rho{rho}_nu{nu}_colloc{N_colloc}_rand{random_colloc}_subsampling{subsampling}_lr{learning_rate}'
 
     # define co-Kriging model
-    mean = (1 - stationary) * torch.mean(train_y)
+    mean = (1 - stationary) * torch.mean(train_y) if mean_explicit is None else (1 - stationary) * mean_explicit
     CoKrig = RxnDiffusionRegressor(kernel = _kernel,
                                    jitter = jitter_co_Krig,
                                    nu = nu,
@@ -791,21 +793,21 @@ def main(rho = 5.0,                                                             
                                     stationary=stationary
                                 )
     
-    y_mean = y_train.centering_y(train_y)
+    y_mean = y_train.centering_y(train_y, mean=mean_explicit)
     y_train.forward(train_y, y_mean)
     
     y2_train = RxnDiffCenteredValues(kernel=_kernel,
                                     rho = rho,
                                     stationary=stationary
                                 )
-    y_mean_sq, k = y2_train.centering_y2(train_y, train_x)
+    y_mean_sq, k = y2_train.centering_y2(train_y, train_x, sigma=sigma, mean=mean_explicit)
     y2_train.forward(train_y**2, k + y_mean_sq)
     
     z_train = RxnDiffCenteredValues(kernel=_kernel,
                                     rho = rho,
                                     stationary=stationary
                                 )
-    term1, term2 = z_train.centering_z(train_y, train_z)
+    term1, term2 = z_train.centering_z(train_y, train_z, sigma=sigma, mean=mean_explicit)
     z_train.forward(train_v, term1 + term2)
 
     ### Concated obs
@@ -847,16 +849,35 @@ def main(rho = 5.0,                                                             
                                                     mode = 'sigma',
                                                     **loss_fn_kwargs,).item()}'
                                                 )
+    # Recomputing ConcatedObs with LOOCV sigma
+    y_mean_sq, k = y2_train.centering_y2(train_y, train_x, sigma=CoKrig.LOOCVsigma, mean=mean_explicit)
+    y2_train.forward(train_y**2, k + y_mean_sq)
+    
+    term1, term2 = z_train.centering_z(train_y, train_z, sigma=CoKrig.LOOCVsigma, mean=mean_explicit)
+    z_train.forward(train_v, term1 + term2)
+
+    list_obs = [y_train.centered, y2_train.centered, torch.zeros(PerBoundaryLower.size(dim=0)), 
+                torch.zeros(PerBoundaryLower.size(dim=0)), z_train.centered]
+    red_list_obs = [y_train.centered, y2_train.centered, 
+                    torch.zeros(PerBoundaryLower.size(dim=0)), 
+                    torch.zeros(PerBoundaryLower.size(dim=0)), z_train.centered[::subsampling]]
+    if mode == 'u':
+        list_obs = [y_train.centered, torch.zeros(PerBoundaryLower.size(dim=0)), z_train.centered]
+        red_list_obs = [y_train.centered, torch.zeros(PerBoundaryLower.size(dim=0)), z_train.centered[::subsampling]]
+
+    ConcatedObs = torch.cat(list_obs).reshape(-1).double()
+    ConcatedObsReduced = torch.cat(red_list_obs).reshape(-1).double()
 
     # Loss landscape visualization
     if loss_landscape:
         CoKrig.loss_landscape_2D(*loss_fn_args, 
                                 **loss_fn_kwargs,
                                 txmin = 0.1,
-                                txmax = 1.0,
+                                txmax = 0.5,
                                 tymin = 0.1,
-                                tymax = 2*math.pi,
-                                Nx = 10, Ny = 20,
+                                # tymax = 2*math.pi,
+                                tymax = 0.5,
+                                Nx = 20, Ny = 20,
                                 name = file_name)
 
     # Trained predictions

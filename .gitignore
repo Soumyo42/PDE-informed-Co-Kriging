@@ -4,3 +4,10 @@ problems/Rxn*
 problems/Sq*
 problems/__pycache__
 __pycache__/
+PDE*
+Rxn*
+Convect*
+Logistic*
+Sq*
+.DS*
+AISTATS*

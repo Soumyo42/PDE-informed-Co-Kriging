@@ -216,15 +216,10 @@ class CenteredValues():
 class PhysicsRegression(nn.Module):
     r"""
     Generic physics based co-Kriging class. 
-    
-    Attributes\:
-
-    :param U:
 
     Define the following methods:
-        1. `.forward()`: this is going to give the observation covariance matrix.
-        2. `._cross_covariance(mode:str='u')`: define one or multiple modes.
-        3. `._centering()`: define the non-zero expectations to be subtracted.  
+        1. `.forward()`: this is going to give the observation covariance matrix, \Sigma.
+        2. `._cross_covariance(mode:str='u')`: define one or multiple modes, \Sigma_\ast. 
     """
 
     def __init__(
