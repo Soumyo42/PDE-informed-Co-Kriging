@@ -592,10 +592,7 @@ def main(beta = 30.0,                                                           
     training_model.plot_loss()
 
     # Computing the sigma
-    print(f'LOOCV optimal sigma: {CoKrig.LOOCVloss(*loss_fn_args,
-                                                mode = 'sigma',
-                                                **loss_fn_kwargs,).item()}'
-                                            )
+    print(f'LOOCV optimal sigma: {CoKrig.LOOCVloss(*loss_fn_args, mode = "sigma", **loss_fn_kwargs,).item()}')
 
     # Loss landscape visualization
     if loss_landscape:

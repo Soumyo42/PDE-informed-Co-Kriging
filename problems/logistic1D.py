@@ -703,7 +703,7 @@ def main(rho = 2.0,                                                             
                             jitter = 1e-6,
                             adaptive_nugget = adaptive_nugget, 
                             ConcatedObs = ConcatedObsReduced,
-                            mode = 'sigma')
+                            mode = "sigma")
     
     print(f'LOOCV optimal sigma: {CoKrig.LOOCVsigma}')
     
