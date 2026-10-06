@@ -845,10 +845,8 @@ def main(rho = 5.0,                                                             
     training_model.plot_loss()
 
     # Computing the sigma
-    print(f'LOOCV optimal sigma: {CoKrig.LOOCVloss(*loss_fn_args,
-                                                    mode = 'sigma',
-                                                    **loss_fn_kwargs,).item()}'
-                                                )
+    print(f'LOOCV optimal sigma: {CoKrig.LOOCVloss(*loss_fn_args, mode = "sigma", **loss_fn_kwargs,).item()}')
+    
     # Recomputing ConcatedObs with LOOCV sigma
     y_mean_sq, k = y2_train.centering_y2(train_y, train_x, sigma=CoKrig.LOOCVsigma, mean=mean_explicit)
     y2_train.forward(train_y**2, k + y_mean_sq)

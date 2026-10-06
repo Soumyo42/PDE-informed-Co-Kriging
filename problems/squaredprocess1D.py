@@ -277,11 +277,7 @@ def main(nobs: int = 5,
 
 
     # Computing the sigma
-    print(f'LOOCV optimal sigma: {CoKrig.LOOCVloss(train_x, 
-                                                jitter = 1e-6,
-                                                adaptive_nugget = adaptive_nugget, 
-                                                ConcatedObs = y2_train.centered,
-                                                mode = 'sigma').item()}')
+    print(f'LOOCV optimal sigma: {CoKrig.LOOCVloss(train_x, jitter = 1e-6, adaptive_nugget = adaptive_nugget, ConcatedObs = y2_train.centered, mode = "sigma").item()}')
 
     # Recomputing the ConcatedObs with LOOCV sigma
     y_mean_sq, kx = y2_train.centering_y2(train_y, train_x, 
