@@ -6,12 +6,12 @@ This is the accompanying python code of the paper.
 
 The supported problems:
 
-- 1D Convection Equation
+- 1D Convection Equation 
 - Logistic Equation
 - 1D Reaction-Diffusion Equation
 - Squared Process 
 
-The code supports RBF and Matérn kernels, LOOCV-based hyperparameter selection and adaptive numerical stabilization.
+The code supports RBF and Matérn kernels, LOOCV-based hyperparameter selection and adaptive numerical stabilization (from https://www.sciencedirect.com/science/article/pii/S0021999121005635).
 
 A two-dimensional Darcy-flow example (`Darcy_jupyter_example/`)  is also provided as a set of Jupyter notebooks. This is a `numpy` implementation.  
 
@@ -34,6 +34,7 @@ A two-dimensional Darcy-flow example (`Darcy_jupyter_example/`)  is also provide
 │   ├── rxndiffusion1D.py
 │   └── squaredprocess1D.py
 ├── SimpleKrigGpytorch.py
+├── repozipfile.zip
 └── requirements.txt
 ```
 ## Installation
@@ -43,6 +44,8 @@ A two-dimensional Darcy-flow example (`Darcy_jupyter_example/`)  is also provide
 cd <repository>
 git clone https://github.com/Soumyo42/PDE-informed-Co-Kriging.git
 ```
+⚠️ ^^^^ `git clone` doesn't work for anonymous github. ⚠️
+Therefore we provide a zip file `repozipfile.zip` for the full code.
 
 2. Create a Virtual Environment
 Linux / macOS:
@@ -87,7 +90,7 @@ usage: main.py [-h] [--problem {convection,logistic,rd,squared}] [--kernel {RBF,
                [--random_colloc RANDOM_COLLOC] [--init_lengthscale INIT_LENGTHSCALE [INIT_LENGTHSCALE ...]] [--stationary STATIONARY] [--loss_landscape LOSS_LANDSCAPE]
                [--subsampling SUBSAMPLING] [--adaptive_nugget ADAPTIVE_NUGGET] [--seed SEED] [--save SAVE] [--paper_results PAPER_RESULTS]
 
-What do the options mean in and how to use them with main.py ?
+What do the options mean and how to use them with main.py ?
 
 options:
   -h, --help            show this help message and exit
@@ -131,6 +134,11 @@ options:
 ```bash
 python main.py --problem {convection,logistic,rd,squared} --paper_results True
 ```
+This produces the figures and metrics for the following:  
+- 1D Convection with $\beta = 30$. Optimal parameters are preset.
+- Logistic equation for $\rho = 1.0$ (with optimization)
+- Squared process example (with optimization)
+- 1D Reaction-Diffusion for $\rho = 5.0$ and $\nu = 5.0$.
 
 ## Darcy Flow example
 
