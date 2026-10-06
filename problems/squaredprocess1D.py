@@ -19,8 +19,6 @@ class SquaredRegression(PhysicsRegression):
     r"""
     Squared process co-Kriging class. 
     
-    Attributes\:
-    
     Define the following methods:
         1. `.forward()`: this is going to give the observation covariance matrix.
         2. `.cross_covariance(mode:str='u')`: define one or multiple modes. 
@@ -97,7 +95,10 @@ class SqCenteredValues(CenteredValues):
 
     # Centering function
     def centering_y2(self, y: Tensor, x: Tensor, 
-                     stationary: bool = True):                      # Stationary assumption for Y 
+                     stationary: bool = True,           # Stationary assumption for Y
+                     sigma: float = 1.0,
+                     mean: float | None = None, 
+                    ):                       
         """ Centering the given observations Y^2. """
         # Storing original
         original_val = self.kernel.diag_mode 
@@ -106,19 +107,22 @@ class SqCenteredValues(CenteredValues):
         # Slightly faster -- Centering formula -- EY^2 - (EY)^2 = k(x,x); EY^2 = k(x,x) + (EY)^2
         y_mean_sq = 0.0
         if not stationary:
-            y_mean_sq = (torch.mean(y))**2 
-        k = self.kernel(x).squeeze()            # For 1D problems
+            if mean is None:
+                y_mean_sq = (torch.mean(y))**2
+            else:
+                y_mean_sq = mean**2 
+        k = sigma**2 * self.kernel(x).squeeze()            
         
         self.kernel.diag_mode = original_val
         return y_mean_sq, k
 
     # kernel based centering
-    def centering_k(self, x: Tensor):
+    def centering_k(self, x: Tensor, sigma=1.0):
         # Storing original
         original_val = self.kernel.diag_mode 
         self.kernel.diag_mode = True
 
-        k = self.kernel(x).squeeze()            # For 1D problems
+        k = sigma**2 * self.kernel(x).squeeze()           
 
         self.kernel.diag_mode = original_val
         return k
@@ -153,7 +157,8 @@ def main(nobs: int = 5,
         weight_decay: float = 1e-4,                                             # optimizer weight decay
         steps: int = 0,                                                         # optimizer steps
         learning_rate: float = 0.01,                                            # optimizer learning rate 
-        best_jitter: bool = False,                                              # find best jitter 
+        best_jitter: bool = False,                                              # find best jitter
+        mean_explicit: float | None = None,                                     # Explicit mean value for the prior (far from observations) 
         sq_flag: bool = True,                                                   # squaring simple Kriging predictions OR simple Kriging the squared process
         seed: int = 0, 
         save: bool = False,                                                     # saving results
@@ -171,7 +176,7 @@ def main(nobs: int = 5,
     file_name = f'_init{_kernel.lengthscale.tolist()}_opt{steps}'
 
     # define co-Kriging model
-    mean = (1 - stationary) * torch.mean(train_y)
+    mean = (1 - stationary) * torch.mean(train_y) if mean_explicit is None else (1 - stationary) * mean_explicit
     CoKrig = SquaredRegression(kernel = _kernel,
                                true_fn = test_y2,
                                jitter = jitter_co_Krig,
@@ -184,7 +189,8 @@ def main(nobs: int = 5,
     # Centered observations
     y2_train = SqCenteredValues(kernel=_kernel)
     y_mean_sq, kx = y2_train.centering_y2(train_y, train_x, 
-                                          stationary=stationary)
+                                          stationary=stationary, 
+                                          mean = mean_explicit)
     y2_train.forward(train_y2, y_mean_sq + kx)
 
     y2_test = SqCenteredValues(kernel = _kernel)
@@ -276,6 +282,16 @@ def main(nobs: int = 5,
                                                 adaptive_nugget = adaptive_nugget, 
                                                 ConcatedObs = y2_train.centered,
                                                 mode = 'sigma').item()}')
+
+    # Recomputing the ConcatedObs with LOOCV sigma
+    y_mean_sq, kx = y2_train.centering_y2(train_y, train_x, 
+                                          stationary=stationary,
+                                          sigma = CoKrig.LOOCVsigma, 
+                                          mean = mean_explicit)
+    y2_train.forward(train_y2, y_mean_sq + kx)
+
+    kx = y2_test.centering_k(test_x, sigma=CoKrig.LOOCVsigma)
+    y2_test.centering = kx + y_mean_sq
 
     # Trained predictions
     prediction, std_dev = CoKrig.predict(train_x,

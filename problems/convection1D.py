@@ -116,8 +116,6 @@ class ConvectionRegression(PhysicsRegression):
     r"""
     Convection equation co-Kriging class. 
     
-    Attributes\:
-    
     Define the following methods:
         1. `.forward()`: this is going to give the observation covariance matrix.
         2. `.cross_covariance(mode:str='u')`: define one or multiple modes. 
@@ -635,8 +633,8 @@ def main(beta = 30.0,                                                           
     else:
         training_model.gpy_train(*args, **kwargs)
 
-    # plotting loss curve
-    training_model.plot_loss_SK()
+    # # plotting loss curve
+    # training_model.plot_loss_SK()
     
     # passing the predictions directly
     training_model.pass_to_model(training_model.predictionSK,

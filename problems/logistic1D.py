@@ -17,8 +17,6 @@ class LogisticRegression(PhysicsRegression):
     r"""
     Logistic equation co-Kriging class. 
     
-    Attributes\:
-    
     Define the following methods:
         1. `.forward()`: this is going to give the observation covariance matrix.
         2. `.cross_covariance(mode:str='u')`: define one or multiple modes. 
@@ -465,46 +463,50 @@ class LogisticCenteredValues(CenteredValues):
         self.stationary = bool(stationary)
 
     # kernel based centering
-    def centering_k(self, x: Tensor):
+    def centering_k(self, x: Tensor, sigma: float = 1.0):
         """ returns k(x,x) """
         # Storing original
         original_val = self.kernel.diag_mode 
         self.kernel.diag_mode = True
 
-        k = self.kernel(x).squeeze()            # For 1D problems
+        k = sigma**2 * self.kernel(x).squeeze()            
 
         self.kernel.diag_mode = original_val
         return k
 
     # centering with empirical mean 
-    def centering_y(self, y: Tensor):
-        """ return `torch.mean(y)` """
-
+    def centering_y(self, y: Tensor, 
+                    mean: float | None = None):
+        """ return `torch.mean(y)` or given mean """
         y_mean = 0.0
+
         if not self.stationary:
-            y_mean = torch.mean(y)
+            if mean is not None:
+                y_mean = mean
+            else: 
+                y_mean = torch.mean(y) 
 
         return y_mean
 
     # Centering u^2 function
-    def centering_y2(self, y: Tensor, x: Tensor,):                       
+    def centering_y2(self, y: Tensor, x: Tensor, sigma = 1.0, mean = None):                       
         """ Centering the given observations Y^2. """
         
         # Centering formula -- EY^2 - (EY)^2 = k(x,x); EY^2 = k(x,x) + (EY)^2
-        y_mean_sq = (self.centering_y(y))**2
+        y_mean_sq = (self.centering_y(y, mean = mean))**2
 
-        k = self.centering_k(x)            # For 1D problems
+        k = self.centering_k(x, sigma=sigma)            
 
         return y_mean_sq, k
 
     # Centering collocation points
-    def centering_z(self, y: Tensor, z: Tensor):                       
+    def centering_z(self, y: Tensor, z: Tensor, sigma = 1.0, mean = None):                       
         """ Centering the collocation points: du/dt - rho * u + rho * u^2 """
 
-        y_mean = self.centering_y(y)
+        y_mean = self.centering_y(y, mean=mean)
 
         term1 = (-self.rho * y_mean)
-        y_mean_sq, k = self.centering_y2(y, z)
+        y_mean_sq, k = self.centering_y2(y, z, sigma=sigma, mean=mean)
 
         term2 = (self.rho * (y_mean_sq + k))
         return term1, term2
@@ -570,6 +572,7 @@ def main(rho = 2.0,                                                             
         best_jitter: bool = False,                                              # find best jitter 
         diagnostic: bool = False,                                               # product kernel based diagnostics.
         mode: str = 'u2',                                                       # u2 observations
+        mean_explicit: float | None = None,                                     # Explicit mean value for the prior (far from observations)
         seed: int | None = None,
         save: bool = False,                                                     # to save the model and figures
         **kwargs, 
@@ -589,7 +592,7 @@ def main(rho = 2.0,                                                             
     file_name = f'_init{_kernel.lengthscale.tolist()}_opt{steps}_rho{rho}_colloc{N_colloc}_stat{str(stationary)}_seed{seed}'
 
     # define co-Kriging model
-    mean = (1 - stationary) * torch.mean(train_y)
+    mean = (1 - stationary) * torch.mean(train_y) if mean_explicit is None else (1 - stationary) * mean_explicit
     CoKrig = LogisticRegression(kernel = _kernel,                               # initialization co-Kriging
                                 rho = rho,
                                 mean = mean,
@@ -612,7 +615,7 @@ def main(rho = 2.0,                                                             
         
         # define co-Kriging model
         stationary: bool = True
-        mean = (1 - stationary) * torch.mean(train_y)
+        mean = (1 - stationary) * torch.mean(train_y) if mean_explicit is None else (1 - stationary) * mean_explicit
         CoKrigDiagnostic = LogisticRegression(kernel = _diagnostic_kernel,                               # initialization co-Kriging
                                     rho = rho,
                                     mean = mean,
@@ -635,21 +638,21 @@ def main(rho = 2.0,                                                             
                                     rho = rho,
                                     stationary=stationary
                                 )
-    y_mean = y_train.centering_y(train_y)
+    y_mean = y_train.centering_y(train_y, mean=mean_explicit)
     y_train.forward(train_y, y_mean)
 
     y2_train = LogisticCenteredValues(kernel=_kernel,
                                         rho = rho,
                                         stationary=stationary
                                     )
-    y_mean_sq, k = y2_train.centering_y2(train_y, train_x)
+    y_mean_sq, k = y2_train.centering_y2(train_y, train_x, mean = mean_explicit)
     y2_train.forward(train_y**2, k + y_mean_sq)
 
     z_train = LogisticCenteredValues(kernel=_kernel,
                                     rho = rho,
                                     stationary=stationary
                                 )
-    term1, term2 = z_train.centering_z(train_y, train_z)
+    term1, term2 = z_train.centering_z(train_y, train_z, mean=mean_explicit)
     z_train.forward(train_v, term1 + term2)
 
     ### Concated obs
@@ -695,15 +698,34 @@ def main(rho = 2.0,                                                             
     training_model.plot_loss()
 
     # Computing the sigma
-    print(f'LOOCV optimal sigma: {CoKrig.LOOCVloss(train_x,
-                                                   train_z[::subsampling], 
-                                                    jitter = 1e-6,
-                                                    adaptive_nugget = adaptive_nugget, 
-                                                    ConcatedObs = ConcatedObsReduced,
-                                                    mode = 'sigma').item()}'
-                                                )
+    sigma = CoKrig.LOOCVloss(train_x,
+                            train_z[::subsampling], 
+                            jitter = 1e-6,
+                            adaptive_nugget = adaptive_nugget, 
+                            ConcatedObs = ConcatedObsReduced,
+                            mode = 'sigma')
+    
+    print(f'LOOCV optimal sigma: {CoKrig.LOOCVsigma}')
     
     # Trained predictions
+    y_mean_sq, k = y2_train.centering_y2(train_y, train_x, sigma=CoKrig.LOOCVsigma, mean = mean_explicit)
+    y2_train.forward(train_y**2, k + y_mean_sq)
+
+    term1, term2 = z_train.centering_z(train_y, train_z, sigma=CoKrig.LOOCVsigma, mean=mean_explicit)
+    z_train.forward(train_v, term1 + term2)
+
+    ### Recomputing concated obs
+    list_obs = [y_train.centered, y2_train.centered, z_train.centered]
+    red_list_obs = [y_train.centered, y2_train.centered, z_train.centered[::subsampling]]
+    if mode == 'u':
+        list_obs = [y_train.centered, z_train.centered]
+        red_list_obs = [y_train.centered, z_train.centered[::subsampling]]
+    elif mode == 'only--u2':
+        list_obs = [y2_train.centered, z_train.centered]
+        red_list_obs = [y2_train.centered, z_train.centered[::subsampling]]
+
+    ConcatedObs = torch.cat(list_obs).reshape(-1).double()
+
     prediction, std_dev = CoKrig.predict(train_x,
                                         test_x,
                                         train_y,
